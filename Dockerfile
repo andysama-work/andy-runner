@@ -16,7 +16,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
     PATH=/usr/local/cargo/bin:/root/.bun/bin:$PATH \
     BUN_INSTALL=/root/.bun
 
-# 安装基础依赖
+# 安装基础依赖 + Tauri 依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
@@ -27,6 +27,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     unzip \
+    # Tauri 依赖
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Node.js
