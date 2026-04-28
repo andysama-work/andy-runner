@@ -67,7 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/cache/apt/archives/*
 
 # 验证安装
-RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version && zig version && cargo zigbuild --version
+RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
