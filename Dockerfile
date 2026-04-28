@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwebkit2gtk-4.1-dev \
     libayatana-appindicator3-dev \
     librsvg2-dev \
+    mingw-w64 \
     # 安装 Node.js (使用清华镜像)
     && curl -fsSL --retry 5 --retry-all-errors https://mirrors.tuna.tsinghua.edu.cn/nodejs-release/v20.11.0/node-v20.11.0-linux-x64.tar.xz -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
@@ -45,10 +46,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # 安装 Rust (minimal profile 减少体积)
     && mkdir -p $CARGO_HOME \
     && curl --proto '=https' --tlsv1.2 -sSf --retry 5 --retry-all-errors https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal \
-    && printf '[source.crates-io]\nreplace-with = "rsproxy-sparse"\n[source.rsproxy-sparse]\nregistry = "sparse+https://rsproxy.cn/index/"\n[net]\ngit-fetch-with-cli = true\n' > $CARGO_HOME/config.toml \
+    && printf '[source.crates-io]\nreplace-with = "rsproxy-sparse"\n[source.rsproxy-sparse]\nregistry = "sparse+https://rsproxy.cn/index/"\n[net]\ngit-fetch-with-cli = true\n[target.x86_64-pc-windows-gnu]\nlinker = "x86_64-w64-mingw32-gcc"\nar = "x86_64-w64-mingw32-gcc-ar"\n' > $CARGO_HOME/config.toml \
     && rustup target add wasm32-unknown-unknown \
-    # 安装 wasm-pack
+    && rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows-gnu \
+    # 安装 Zig (用于 cargo-zigbuild 跨平台编译)
+    && curl -fsSL --retry 5 --retry-all-errors https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -o /tmp/zig.tar.xz \
+    && tar -xJf /tmp/zig.tar.xz -C /tmp \
+    && mv /tmp/zig-linux-x86_64-0.13.0 /usr/local/zig \
+    && ln -s /usr/local/zig/zig /usr/local/bin/zig \
+    # 安装 wasm-pack 和 cargo-zigbuild
     && cargo install wasm-pack --locked \
+    && cargo install cargo-zigbuild --locked \
     # 清理所有缓存
     && rm -rf /tmp/* \
     && rm -rf $CARGO_HOME/registry \
@@ -59,7 +67,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/cache/apt/archives/*
 
 # 验证安装
-RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version
+RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version && zig version && cargo zigbuild --version
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
