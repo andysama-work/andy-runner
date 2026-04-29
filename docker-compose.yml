@@ -1,0 +1,15 @@
+services:
+  runner:
+    image: gitea-runner-full:latest
+    container_name: gitea-runner-full
+    restart: unless-stopped
+    environment:
+      CONFIG_FILE: /config.yaml
+      GITEA_INSTANCE_URL: ${GITEA_INSTANCE_URL}
+      GITEA_RUNNER_REGISTRATION_TOKEN: ${GITEA_RUNNER_REGISTRATION_TOKEN}
+      GITEA_RUNNER_NAME: ${GITEA_RUNNER_NAME:-gitea-runner-full}
+      GITEA_RUNNER_LABELS: ${GITEA_RUNNER_LABELS:-full:docker://gitea-runner-full:latest}
+    volumes:
+      - ./config.example.yaml:/config.yaml:ro
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock

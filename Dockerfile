@@ -14,30 +14,33 @@ ENV DEBIAN_FRONTEND=noninteractive \
     CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse \
     PATH=/usr/local/cargo/bin:/usr/local/bin:$PATH
 
-# 替换为清华源加速
-RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources || \
-    sed -i 's|http://deb.debian.org|https://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list
+# 保留 Debian 默认源
+RUN sed -i 's|https://mirrors.tuna.tsinghua.edu.cn|http://deb.debian.org|g; s|http://mirrors.tuna.tsinghua.edu.cn|http://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources || \
+    sed -i 's|https://mirrors.tuna.tsinghua.edu.cn|http://deb.debian.org|g; s|http://mirrors.tuna.tsinghua.edu.cn|http://deb.debian.org|g' /etc/apt/sources.list
 
 # 合并所有安装步骤减少层数，并在同一层清理缓存
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    bash \
     curl \
     wget \
     git \
     openssh-client \
     sshpass \
     xz-utils \
+    tzdata \
     build-essential \
     pkg-config \
     libssl-dev \
     unzip \
+    clang \
     libgtk-3-dev \
     libwebkit2gtk-4.1-dev \
     libayatana-appindicator3-dev \
     librsvg2-dev \
     mingw-w64 \
-    # 安装 Node.js (使用清华镜像)
-    && curl -fsSL --retry 5 --retry-all-errors https://mirrors.tuna.tsinghua.edu.cn/nodejs-release/v20.11.0/node-v20.11.0-linux-x64.tar.xz -o /tmp/node.tar.xz \
+    # 安装 Node.js (使用官方源)
+    && curl -fsSL --retry 5 --retry-all-errors https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     # 安装 Bun (通过 npm + npmmirror)
     && npm config set registry https://registry.npmmirror.com \
@@ -54,20 +57,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && tar -xJf /tmp/zig.tar.xz -C /tmp \
     && mv /tmp/zig-linux-x86_64-0.13.0 /usr/local/zig \
     && ln -s /usr/local/zig/zig /usr/local/bin/zig \
-    # 安装 wasm-pack 和 cargo-zigbuild
-    && cargo install wasm-pack --locked \
-    && cargo install cargo-zigbuild --locked \
+    # 安装 wasm-pack 和 cargo-zigbuild (使用 clang 避免 GCC ICE)
+    && CC=clang cargo install wasm-pack --locked \
+    && CC=clang cargo install cargo-zigbuild --locked \
     # 清理所有缓存
     && rm -rf /tmp/* \
     && rm -rf $CARGO_HOME/registry \
     && rm -rf $CARGO_HOME/git \
-    && rustup component remove rust-docs 2>/dev/null || true \
+    && (rustup component remove rust-docs 2>/dev/null || true) \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/cache/apt/archives/*
 
-# 验证安装
-RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version
+# 下载并安装 Gitea act_runner (v0.5.0)
+RUN curl -fsSL --retry 5 --retry-all-errors https://dl.gitea.com/act_runner/0.5.0/act_runner-0.5.0-linux-amd64 -o /usr/local/bin/act_runner \
+    && chmod +x /usr/local/bin/act_runner
 
+COPY scripts/run.sh /usr/local/bin/run.sh
+RUN chmod +x /usr/local/bin/run.sh \
+    && mkdir -p /data
+
+# 验证安装
+RUN node --version && npm --version && bun --version && rustc --version && wasm-pack --version && act_runner --version
+
+VOLUME ["/data"]
 WORKDIR /workspace
-CMD ["/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/run.sh"]
